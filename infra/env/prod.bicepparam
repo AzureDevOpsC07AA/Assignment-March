@@ -14,6 +14,8 @@ param keyVaultName = 'kvshippulseprodDemo01'
 // Monitoring
 param logAnalyticsName = 'law-shippulse-prod-demo01'
 param appInsightsName = 'appi-shippulse-prod-demo01'
+param staticWebAppName = 'swa-shippulse-prod-demo01'
+param staticWebAppLocation = 'eastasia'
 
 // Slightly stronger SKU if budget allows; keep B1 if needed
 param skuName = 'B1'

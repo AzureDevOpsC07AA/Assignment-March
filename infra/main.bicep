@@ -23,6 +23,12 @@ param logAnalyticsName string
 @description('Application Insights name')
 param appInsightsName string
 
+@description('Static Web App name (global unique)')
+param staticWebAppName string
+
+@description('Static Web App location. Static Web Apps is not available in all Azure regions.')
+param staticWebAppLocation string = 'eastasia'
+
 @description('App Service SKU, e.g. B1 (dev) or P1v3 (prod-lite)')
 param skuName string = 'B1'
 
@@ -83,7 +89,14 @@ module webApp 'modules/webApp.bicep' = {
     planId: appPlan.outputs.planId
     appInsightsConnectionString: appInsights.outputs.connectionString
     env: env
-    keyVaultUri: keyVault.outputs.vaultUri
+  }
+}
+
+module staticWebApp 'modules/staticWebApp.bicep' = {
+  name: 'swa-${env}-${uniqueSuffix}'
+  params: {
+    appName: staticWebAppName
+    location: staticWebAppLocation
   }
 }
 
@@ -101,3 +114,4 @@ module jumpbox 'modules/jumpboxVm.bicep' = if (enableJumpbox) {
 
 output keyVaultUri string = keyVault.outputs.vaultUri
 output webAppHostname string = webApp.outputs.hostname
+output staticWebAppHostname string = staticWebApp.outputs.hostname

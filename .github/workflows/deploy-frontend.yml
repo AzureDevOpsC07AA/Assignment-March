@@ -5,6 +5,12 @@ on:
     branches: [ develop, main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
 jobs:
   deploy-dev:
     if: github.ref == 'refs/heads/develop'
@@ -12,6 +18,32 @@ jobs:
     environment: dev
     steps:
       - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Infra (Bicep)
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group ${{ secrets.AZURE_RG_DEV }} \
+              --template-file infra/main.bicep \
+              --parameters infra/env/dev.bicepparam \
+              ${{ secrets.ADDITIONAL_BICEP_PARAMS_DEV }}
+
+      - name: Fetch Static Web Apps token
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            token=$(az staticwebapp secrets list --name ${{ secrets.AZURE_STATIC_WEBAPP_NAME_DEV }} --resource-group ${{ secrets.AZURE_RG_DEV }} --query properties.apiKey -o tsv)
+            if [ -z "$token" ]; then
+              echo "Static Web Apps deployment token was empty." >&2
+              exit 1
+            fi
+            echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
 
       - name: Prepare config
         run: |
@@ -21,13 +53,13 @@ jobs:
       - name: Build static site
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet publish src/ShipPulse.Web/ShipPulse.Web.csproj -c Release -o ./webpublish
 
       - name: Deploy to Static Web Apps (dev)
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_DEV }}
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
           action: "upload"
           app_location: "./webpublish/wwwroot"
           output_location: ""
@@ -39,6 +71,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Infra (Bicep)
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group ${{ secrets.AZURE_RG_PROD }} \
+              --template-file infra/main.bicep \
+              --parameters infra/env/prod.bicepparam \
+              ${{ secrets.ADDITIONAL_BICEP_PARAMS_PROD }}
+
+      - name: Fetch Static Web Apps token
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            token=$(az staticwebapp secrets list --name ${{ secrets.AZURE_STATIC_WEBAPP_NAME_PROD }} --resource-group ${{ secrets.AZURE_RG_PROD }} --query properties.apiKey -o tsv)
+            if [ -z "$token" ]; then
+              echo "Static Web Apps deployment token was empty." >&2
+              exit 1
+            fi
+            echo "SWA_DEPLOYMENT_TOKEN=$token" >> "$GITHUB_ENV"
+
       - name: Prepare config
         run: |
           cp src/ShipPulse.Web/wwwroot/appsettings.template.json src/ShipPulse.Web/wwwroot/appsettings.json
@@ -47,13 +105,13 @@ jobs:
       - name: Build static site
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet publish src/ShipPulse.Web/ShipPulse.Web.csproj -c Release -o ./webpublish
 
       - name: Deploy to Static Web Apps (prod)
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROD }}
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
           action: "upload"
           app_location: "./webpublish/wwwroot"
           output_location: ""

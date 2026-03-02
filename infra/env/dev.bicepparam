@@ -16,11 +16,13 @@ param keyVaultName = 'kvshippulsedevDemo01'
 // Monitoring
 param logAnalyticsName = 'law-shippulse-dev-demo01'
 param appInsightsName = 'appi-shippulse-dev-demo01'
+param staticWebAppName = 'swa-shippulse-dev-demo01'
+param staticWebAppLocation = 'eastasia'
 
 param skuName = 'B1'
 
-// Enable VM for dev learning
-param enableJumpbox = true
+// Enable VM for dev learning only after setting SSH values below
+param enableJumpbox = false
 param jumpboxVmName = 'vm-shippulse-jump-demo01'
 param jumpboxAdminUsername = 'azureuser'
 

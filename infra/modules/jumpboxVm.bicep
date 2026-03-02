@@ -10,7 +10,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
   properties: {
     addressSpace: { addressPrefixes: [ '10.40.0.0/16' ] }
     subnets: [
-      { name: 'snet-jump'; properties: { addressPrefix: '10.40.1.0/24' } }
+      {
+        name: 'snet-jump'
+        properties: {
+          addressPrefix: '10.40.1.0/24'
+        }
+      }
     ]
   }
 }
@@ -51,7 +56,7 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
 }
 
 resource pip 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
-  name: 'pip-' + vmName
+  name: 'pip-${vmName}'
   location: location
   sku: { name: 'Standard' }
   properties: {
@@ -60,7 +65,7 @@ resource pip 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
 }
 
 resource nic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
-  name: 'nic-' + vmName
+  name: 'nic-${vmName}'
   location: location
   properties: {
     ipConfigurations: [
@@ -90,7 +95,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
         ssh: {
           publicKeys: [
             {
-              path: '/home/' + adminUsername + '/.ssh/authorized_keys'
+              path: '/home/${adminUsername}/.ssh/authorized_keys'
               keyData: sshPublicKey
             }
           ]
