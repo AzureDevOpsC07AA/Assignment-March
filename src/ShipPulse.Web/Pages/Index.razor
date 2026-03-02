@@ -1,0 +1,107 @@
+@inject HttpClient Http
+
+@page "/"
+@using System.Net.Http.Json
+
+<h2>Feedback</h2>
+
+<div class="card">
+  <label>Message</label>
+  <textarea @bind="NewMessage" @bind:event="oninput" rows="3"></textarea>
+
+  <label>Created By (optional)</label>
+  <input @bind="CreatedBy" @bind:event="oninput" />
+
+  <button @onclick="Submit" disabled="@IsSubmitting">Submit</button>
+
+  @if (!string.IsNullOrWhiteSpace(Error))
+  {
+    <p class="error">@Error</p>
+  }
+</div>
+
+<div class="card">
+  <h3>Latest feedback</h3>
+  @if (Items is null)
+  {
+    <p>Loading...</p>
+  }
+  else if (Items.Count == 0)
+  {
+    <p>No feedback yet.</p>
+  }
+  else
+  {
+    <ul class="list">
+      @foreach (var i in Items)
+      {
+        <li>
+          <div class="msg">@i.Message</div>
+          <div class="meta">by <b>@i.CreatedBy</b> at @i.CreatedAtUtc.ToString("u")</div>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@code {
+  private List<FeedbackItem>? Items;
+  private string NewMessage = "";
+  private string? CreatedBy;
+  private string? Error;
+  private bool IsSubmitting;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Refresh();
+  }
+
+  private async Task Refresh()
+  {
+    Error = null;
+    Items = await Http.GetFromJsonAsync<List<FeedbackItem>>("api/feedback");
+  }
+
+  private async Task Submit()
+  {
+    Error = null;
+    IsSubmitting = true;
+
+    try
+    {
+      var message = NewMessage.Trim();
+      var createdBy = string.IsNullOrWhiteSpace(CreatedBy) ? null : CreatedBy.Trim();
+
+      if (message.Length < 3)
+      {
+        Error = "Message must be at least 3 characters.";
+        return;
+      }
+
+      var resp = await Http.PostAsJsonAsync("api/feedback", new CreateFeedbackRequest(message, createdBy));
+      if (!resp.IsSuccessStatusCode)
+      {
+        var details = await resp.Content.ReadAsStringAsync();
+        Error = string.IsNullOrWhiteSpace(details)
+          ? $"Submit failed with status {(int)resp.StatusCode} ({resp.ReasonPhrase})."
+          : $"Submit failed: {details}";
+        return;
+      }
+
+      NewMessage = "";
+      CreatedBy = null;
+      await Refresh();
+    }
+    catch (Exception ex)
+    {
+      Error = "Submit failed: " + ex.Message;
+    }
+    finally
+    {
+      IsSubmitting = false;
+    }
+  }
+
+  public record FeedbackItem(string Id, string Message, string? CreatedBy, DateTime CreatedAtUtc);
+  public record CreateFeedbackRequest(string Message, string? CreatedBy);
+}

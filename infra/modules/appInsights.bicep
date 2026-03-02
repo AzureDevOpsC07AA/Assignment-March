@@ -1,0 +1,15 @@
+param appInsightsName string
+param location string
+param workspaceId string
+
+resource appi 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: workspaceId
+  }
+}
+
+output connectionString string = appi.properties.ConnectionString
