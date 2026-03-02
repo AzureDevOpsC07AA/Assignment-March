@@ -24,21 +24,18 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy Infra (Bicep)
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az deployment group create \
-              --resource-group ${{ secrets.AZURE_RG_DEV }} \
-              --template-file infra/main.bicep \
-              --parameters infra/env/dev.bicepparam \
-              ${{ secrets.ADDITIONAL_BICEP_PARAMS_DEV }}
-
       - name: Fetch Static Web Apps token
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            token=$(az staticwebapp secrets list --name ${{ secrets.AZURE_STATIC_WEBAPP_NAME_DEV }} --resource-group ${{ secrets.AZURE_RG_DEV }} --query properties.apiKey -o tsv)
+            for i in $(seq 1 30); do
+              token=$(az staticwebapp secrets list --name ${{ secrets.AZURE_STATIC_WEBAPP_NAME_DEV }} --resource-group ${{ secrets.AZURE_RG_DEV }} --query properties.apiKey -o tsv 2>/dev/null)
+              if [ -n "$token" ]; then
+                break
+              fi
+              echo "Static Web App not ready yet. Retry $i/30..."
+              sleep 20
+            done
             if [ -z "$token" ]; then
               echo "Static Web Apps deployment token was empty." >&2
               exit 1
@@ -76,21 +73,18 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy Infra (Bicep)
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az deployment group create \
-              --resource-group ${{ secrets.AZURE_RG_PROD }} \
-              --template-file infra/main.bicep \
-              --parameters infra/env/prod.bicepparam \
-              ${{ secrets.ADDITIONAL_BICEP_PARAMS_PROD }}
-
       - name: Fetch Static Web Apps token
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            token=$(az staticwebapp secrets list --name ${{ secrets.AZURE_STATIC_WEBAPP_NAME_PROD }} --resource-group ${{ secrets.AZURE_RG_PROD }} --query properties.apiKey -o tsv)
+            for i in $(seq 1 30); do
+              token=$(az staticwebapp secrets list --name ${{ secrets.AZURE_STATIC_WEBAPP_NAME_PROD }} --resource-group ${{ secrets.AZURE_RG_PROD }} --query properties.apiKey -o tsv 2>/dev/null)
+              if [ -n "$token" ]; then
+                break
+              fi
+              echo "Static Web App not ready yet. Retry $i/30..."
+              sleep 20
+            done
             if [ -z "$token" ]; then
               echo "Static Web Apps deployment token was empty." >&2
               exit 1

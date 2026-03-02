@@ -57,6 +57,7 @@ jobs:
         with:
           inlineScript: |
             az deployment group create \
+              --name dev-${{ github.run_id }} \
               --resource-group ${{ secrets.AZURE_RG_DEV }} \
               --template-file infra/main.bicep \
               --parameters infra/env/dev.bicepparam \
@@ -94,6 +95,7 @@ jobs:
         with:
           inlineScript: |
             az deployment group create \
+              --name prod-${{ github.run_id }} \
               --resource-group ${{ secrets.AZURE_RG_PROD }} \
               --template-file infra/main.bicep \
               --parameters infra/env/prod.bicepparam \
