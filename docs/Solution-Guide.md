@@ -78,50 +78,53 @@ Prasanth:
 
 ## Expected Azure Auth Model
 
-The preferred classroom path is:`r`n`r`nImportant terminology:`r`n- `App registration` defines the application identity.`r`n- `Service principal` or `Enterprise application` is the Azure-side security principal that receives IAM role assignments.`r`n
+The validated classroom path is:
 
-- Azure App Registration
-- GitHub OIDC federated credentials
-- No stored client secret in GitHub
-- Resource-group level `Contributor` role assignment for the app registration
+- one Azure service principal per student
+- `AZURE_CREDENTIALS` stored as a GitHub secret
+- `Contributor` access on the target subscription or resource group
+
+Important terminology:
+
+- `App registration` defines the application identity
+- `Service principal` or `Enterprise application` is the Azure-side security principal that receives IAM role assignments
 
 ### What we should expect 
 
-1. One app registration per student
-2. Two federated credentials per app registration
-   - one for `develop`
-   - one for `main`
-3. Role assignment on the dev resource group
+1. One service principal per student
+2. One JSON payload stored in `AZURE_CREDENTIALS`
+3. Role assignment on the dev resource group or subscription
 4. Role assignment on the prod resource group if prod is separate
 
 ### Values that must be collected
 
-- `Application (client) ID` -> `AZURE_CLIENT_ID`
-- `Directory (tenant) ID` -> `AZURE_TENANT_ID`
-- Azure subscription ID -> `AZURE_SUBSCRIPTION_ID`
+- `clientId`
+- `clientSecret`
+- `tenantId`
+- `subscriptionId`
 
-### Correct GitHub federated credential settings
+### How students should create it
 
-- GitHub organization: `AzureDevOpsC07AA`
-- Repository:
-  - Ram: `shippulse-ram`
-  - Prasanth: `shippulse-prasanth`
-- Branch entries required:
-  - `develop`
-  - `main`
+```bash
+az ad sp create-for-rbac \
+  --name "sp-shippulse-ram-github" \
+  --role contributor \
+  --scopes /subscriptions/<YOUR_SUBSCRIPTION_ID>
+```
+
+Prasanth should use a name such as `sp-shippulse-prasanth-github`.
 
 ### Review warning
 
-If the student creates the app registration correctly but forgets the federated credential for one branch, one environment will work and the other will fail. This is a common issue and should be checked early.
+If the student creates the service principal but stores malformed JSON in `AZURE_CREDENTIALS`, both workflows will fail at Azure login. This is a common issue and should be checked early.
+
 ## Expected GitHub Secrets
 
 Ensure to provide values for these names.
 
 ### Backend-related
 
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_CREDENTIALS`
 - `AZURE_RG_DEV`
 - `AZURE_RG_PROD`
 - `AZURE_WEBAPP_NAME_DEV`
@@ -129,27 +132,27 @@ Ensure to provide values for these names.
 
 ### Frontend-related
 
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV`
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD`
+- `AZURE_STATIC_WEBAPP_NAME_DEV`
+- `AZURE_STATIC_WEBAPP_NAME_PROD`
 - `API_BASE_URL_DEV`
 - `API_BASE_URL_PROD`
+- `ADDITIONAL_BICEP_PARAMS_DEV`
+- `ADDITIONAL_BICEP_PARAMS_PROD`
 
 ### Review note
 
-The current repo expects backend Azure login values as plain secret names, not separate `_DEV` and `_PROD` variants. Students may still organize them at repo or environment level, but the workflow names must match the YAML.
+The current repo expects one shared Azure login secret, `AZURE_CREDENTIALS`. Students may still organize other values at repo or environment level, but the workflow names must match the YAML.
 
 ### How you should obtain the values
 
-- `AZURE_CLIENT_ID`
-  - From the Azure app registration overview page
-- `AZURE_TENANT_ID`
-  - From the Azure app registration overview page
-- `AZURE_SUBSCRIPTION_ID`
-  - From `Subscriptions` in Azure Portal or `az account show --query id -o tsv`
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` and `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD`
-  - From each Static Web App under `Manage deployment token`
+- `AZURE_CREDENTIALS`
+  - From the JSON output of `az ad sp create-for-rbac`
+- `AZURE_STATIC_WEBAPP_NAME_DEV` and `AZURE_STATIC_WEBAPP_NAME_PROD`
+  - From the Bicep parameter values or the created Azure resource names
 - `API_BASE_URL_DEV` and `API_BASE_URL_PROD`
   - From each App Service default hostname, prefixed with `https://`
+- `ADDITIONAL_BICEP_PARAMS_DEV` and `ADDITIONAL_BICEP_PARAMS_PROD`
+  - From the final enforced resource names if the instructor wants the workflow to override starter parameter values
 
 ## What Should Happen on `develop`
 
@@ -172,8 +175,10 @@ The current repo expects backend Azure login values as plain secret names, not s
 1. Checkout
 2. Copy `appsettings.template.json` to `appsettings.json`
 3. Replace `__API_BASE_URL__` with `API_BASE_URL_DEV`
-4. Publish Blazor app
-5. Deploy to dev Static Web App using `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV`
+4. Azure login using `AZURE_CREDENTIALS`
+5. Fetch Static Web Apps token by using `AZURE_STATIC_WEBAPP_NAME_DEV`
+6. Publish Blazor app
+7. Deploy to dev Static Web App
 
 ## What Should Happen on `main`
 
@@ -183,7 +188,7 @@ Uses `infra/env/prod.bicepparam` and deploys the API to the prod App Service.
 
 ### Frontend workflow expected behavior
 
-Uses `API_BASE_URL_PROD` and `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` to deploy the production frontend.
+Uses `API_BASE_URL_PROD` and `AZURE_STATIC_WEBAPP_NAME_PROD` to deploy the production frontend.
 
 ## Review Checklist by Capability
 
@@ -259,11 +264,10 @@ git push -u origin develop
 
 Fix:
 
-- Re-check `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
-- Re-check federated credential or service principal access
-- Confirm the federated credential repository is exactly `AzureDevOpsC07AA/<student-repo-name>`
-- Confirm the federated credential branch matches the branch that triggered the workflow
-- Confirm the app registration has `Contributor` access on the correct resource group
+- Re-check `AZURE_CREDENTIALS`
+- Re-check service principal access
+- Confirm the JSON contains `clientId`, `clientSecret`, `tenantId`, and `subscriptionId`
+- Confirm the service principal has `Contributor` access on the correct resource group or subscription
 
 ### Mistake: Bicep deploy fails because of bad names
 
@@ -292,8 +296,9 @@ Fix:
 
 The repo currently provisions Key Vault and writes a sample Key Vault reference into App Service:
 
-- app setting name: `ExternalApi__ApiKey`
-- expected secret path shape: `secrets/ExternalApi--ApiKey/`
+- Key Vault exists in the architecture
+- Students should understand what it is for
+- Secret creation and end-to-end app consumption still require manual verification
 
 What is not fully automated here:
 
@@ -308,7 +313,7 @@ Students should not be told this is already complete. They should be told to ver
 Run from Ubuntu:
 
 ```bash
-dotnet test
+dotnet test src/ShipPulse.Tests/ShipPulse.Tests.csproj
 dotnet run --project src/ShipPulse.Api
 curl -X GET "http://localhost:5080/health"
 curl -X POST "http://localhost:5080/api/feedback" -H "Content-Type: application/json" -d "{\"message\":\"verification message\",\"createdBy\":\"review\"}"
@@ -344,10 +349,10 @@ Use these questions in the week-later discussion:
 3. Fix naming or permission issues first.
 4. Re-run the workflow.
 
-### If GitHub OIDC is misconfigured
+### If GitHub Azure login is misconfigured
 
-1. Verify the federated credential subject and audience.
-2. Verify the app registration has the right subscription or resource group access.
+1. Verify `AZURE_CREDENTIALS` is valid JSON.
+2. Verify the service principal has the right subscription or resource group access.
 3. Re-run only after the login issue is fixed.
 
 ### If secrets are missing
@@ -379,5 +384,3 @@ Use these questions in the week-later discussion:
 - Student documents a Logic App based VM start routine
 - Student improves naming consistency
 - Student identifies the Key Vault automation gap without prompting
-
-

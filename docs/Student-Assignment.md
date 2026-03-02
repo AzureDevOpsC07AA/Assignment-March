@@ -202,7 +202,7 @@ dotnet restore
 2. Run the tests:
 
 ```bash
-dotnet test
+dotnet test src/ShipPulse.Tests/ShipPulse.Tests.csproj
 ```
 
 3. Start the API:
@@ -291,9 +291,11 @@ Repo files on Ubuntu.
    - must be globally unique
    - letters and numbers only
    - no hyphens
-6. Keep `enableJumpbox = true` for dev if you want the Bicep-managed VM path.
+6. Keep `enableJumpbox = false` unless you intentionally want to test the optional Bicep-managed jumpbox path and you have real SSH values ready.
 7. Keep `enableJumpbox = false` for prod.
-8. If you are not using Bicep to create the VM because you already created it manually in the portal, document that choice in your notes so Farees can see your reasoning.
+8. Keep `location = 'centralindia'` unless Azure capacity forces you to change it.
+9. Keep `staticWebAppLocation = 'eastasia'`. The validated deployment path uses `East Asia` for Static Web Apps.
+10. If you are not using Bicep to create the VM because you already created it manually in the portal, document that choice in your notes so Farees can see your reasoning.
 
 ### Expected result
 
@@ -308,11 +310,11 @@ Both parameter files contain your own consistent, deployable naming pattern.
 
 ### Goal
 
-Create the Azure identity GitHub Actions will use to deploy backend infrastructure and App Service changes.
+Create the Azure identity GitHub Actions will use to deploy backend infrastructure, backend code, and frontend code.
 
 ### Where to do this
 
-Azure Portal, Azure CLI in Ubuntu, and GitHub repo settings.
+Azure CLI in Ubuntu, Azure Portal, and GitHub repo settings.
 
 ### Exact steps
 
@@ -329,77 +331,75 @@ az account show
 az account set --subscription "<YOUR_SUBSCRIPTION_ID_OR_NAME>"
 ```
 
-3. Create an Azure app registration. In Azure Portal:`r`n   - Important: the app registration is the identity definition, and the corresponding service principal is the identity you grant access to in Azure.`r`n   - In many Azure screens you may see this identity referred to as an `Enterprise application` or `service principal`.`r`n   - In Azure Portal:
-   - Search for `App registrations`
-   - Select `New registration`
-   - Name it clearly
-     - Ram example: `sp-shippulse-ram-github`
-     - Prasanth example: `sp-shippulse-prasanth-github`
-   - Keep the default single-tenant option unless your organization requires something else
-   - Select `Register`
-
-4. Open the new app registration and record these values:
-   - `Application (client) ID` -> this becomes `AZURE_CLIENT_ID`
-   - `Directory (tenant) ID` -> this becomes `AZURE_TENANT_ID`
-
-5. Get your subscription ID. In Azure Portal you can copy it from `Subscriptions`, or in Ubuntu run:
+3. Get your subscription ID if you do not already know it:
 
 ```bash
 az account show --query id -o tsv
 ```
 
-6. Save that value as `AZURE_SUBSCRIPTION_ID`.
+4. Create a service principal with Contributor access. Run this from Ubuntu:
 
-7. Create a federated credential for GitHub Actions. In the app registration:
-   - Open `Certificates & secrets`
-   - Open `Federated credentials`
-   - Select `Add credential`
-   - Credential scenario: `GitHub Actions deploying Azure resources`
-   - Organization: `AzureDevOpsC07AA`
-   - Repository:
-     - Ram: `shippulse-ram`
-     - Prasanth: `shippulse-prasanth`
-   - Entity type: `Branch`
-   - GitHub branch: `develop`
-   - Name example: `github-develop`
-   - Select `Add`
+```bash
+az ad sp create-for-rbac \
+  --name "sp-shippulse-ram-github" \
+  --role contributor \
+  --scopes /subscriptions/<YOUR_SUBSCRIPTION_ID>
+```
 
-8. Repeat the federated credential step for the `main` branch.
-   - Name example: `github-main`
+Prasanth should use a name such as `sp-shippulse-prasanth-github`.
 
-9. Grant Azure access to the app registration. The simplest classroom-safe path is resource-group level access. In Azure Portal:
-   - Open the resource group you will deploy into
-   - Open `Access control (IAM)`
-   - Select `Add role assignment`
-   - Role: `Contributor`
-   - Assign access to: `User, group, or service principal`
-   - Select your app registration
-   - Save
+5. The command returns JSON. Record these values:
+   - `clientId`
+   - `clientSecret`
+   - `tenantId`
+   - `subscriptionId`
 
-10. If dev and prod use separate resource groups, repeat the role assignment for both resource groups.
+6. Important terminology:
+   - The app registration defines the identity.
+   - The service principal, sometimes shown as an enterprise application, is the identity that actually receives Azure role assignments.
 
-11. If you prefer Azure CLI, you can create the role assignment from Ubuntu:
+7. Create the GitHub secret payload file from Ubuntu:
+
+```bash
+cat > azure-credentials.json <<'EOF'
+{
+  "clientId": "<clientId>",
+  "clientSecret": "<clientSecret>",
+  "subscriptionId": "<subscriptionId>",
+  "tenantId": "<tenantId>"
+}
+EOF
+```
+
+8. Verify the service principal can sign in:
+
+```bash
+az login --service-principal \
+  --username "<clientId>" \
+  --password "<clientSecret>" \
+  --tenant "<tenantId>"
+az account show
+```
+
+9. If your organization requires resource-group scoped access instead of subscription-wide access, assign `Contributor` only to the target resource group:
 
 ```bash
 az role assignment create \
-  --assignee <AZURE_CLIENT_ID> \
+  --assignee <clientId> \
   --role Contributor \
-  --scope /subscriptions/<AZURE_SUBSCRIPTION_ID>/resourceGroups/<YOUR_RESOURCE_GROUP_NAME>
+  --scope /subscriptions/<subscriptionId>/resourceGroups/<YOUR_RESOURCE_GROUP_NAME>
 ```
 
-12. Keep these three values ready for GitHub secrets:
-   - `AZURE_CLIENT_ID`
-   - `AZURE_TENANT_ID`
-   - `AZURE_SUBSCRIPTION_ID`
+10. Keep the full JSON content ready for the `AZURE_CREDENTIALS` GitHub secret in the next phase.
 
 ### Expected result
 
-GitHub Actions can use OIDC to sign in to Azure without storing a client secret in GitHub.
+GitHub Actions can sign in to Azure by using a service principal stored in `AZURE_CREDENTIALS`.
 
 ### If blocked, check this
 
-- If Azure login fails in GitHub Actions, the most common issue is a wrong federated credential branch, repo name, org name, or missing IAM role assignment.
-- If your organization blocks app registration creation, ask for the app registration and federated credential to be created for you, then continue with the same secret names.
+- If `az ad sp create-for-rbac` fails, confirm you have permission to create app registrations and role assignments.
+- If service principal login fails, re-check the four JSON values before saving them into GitHub.
 
 ## Phase 8: Configure GitHub Environments and Secrets
 
@@ -420,16 +420,17 @@ GitHub repo settings.
    - If the value is the same for both environments, repository secrets are acceptable.
    - If the value is different for dev and prod, environment secrets are clearer.
 
-5. Add the backend deployment secrets.
+5. Add the Azure login secret.
+
+Required value:
+
+- `AZURE_CREDENTIALS`
+  - Value source: the full JSON content from `azure-credentials.json`
+
+6. Add the backend deployment secrets.
 
 Required values:
 
-- `AZURE_CLIENT_ID`
-  - Value source: App registration `Application (client) ID`
-- `AZURE_TENANT_ID`
-  - Value source: App registration `Directory (tenant) ID`
-- `AZURE_SUBSCRIPTION_ID`
-  - Value source: Azure subscription ID
 - `AZURE_RG_DEV`
   - Value source: the resource group name used for dev deployment
 - `AZURE_RG_PROD`
@@ -439,35 +440,48 @@ Required values:
 - `AZURE_WEBAPP_NAME_PROD`
   - Value source: the backend prod app name in `infra/env/prod.bicepparam`
 
-6. Create or confirm the backend Azure resources so you know the real names.
+7. Create or confirm the backend Azure resources so you know the real names.
    - If you deploy infra first from the CLI, copy the actual created resource names from Azure Portal.
    - If you rely on workflow-created infra, confirm the names match the Bicep parameter files exactly.
 
-7. Add the frontend deployment secrets.
+8. Add the frontend deployment secrets.
 
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV`
-- `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD`
+- `AZURE_STATIC_WEBAPP_NAME_DEV`
+- `AZURE_STATIC_WEBAPP_NAME_PROD`
 - `API_BASE_URL_DEV`
 - `API_BASE_URL_PROD`
+- `ADDITIONAL_BICEP_PARAMS_DEV`
+- `ADDITIONAL_BICEP_PARAMS_PROD`
 
-8. To get the Static Web Apps deployment token in Azure Portal:
-   - Open your Static Web App
-   - Open `Manage deployment token`
-   - Copy the token
-   - Save the dev token as `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV`
-   - Save the prod token as `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD`
+9. Save the Static Web App names exactly as deployed by your Bicep parameters.
+   - Save the dev name as `AZURE_STATIC_WEBAPP_NAME_DEV`
+   - Save the prod name as `AZURE_STATIC_WEBAPP_NAME_PROD`
+   - The workflow signs in to Azure and fetches the deployment token automatically. Do not create manual deployment token secrets unless you are debugging.
 
-9. To get the correct API base URL values:
-   - Open the dev App Service overview page
-   - Copy the default hostname and build the URL as `https://<your-dev-app-service-hostname>`
-   - Save it as `API_BASE_URL_DEV`
-   - Repeat for prod and save it as `API_BASE_URL_PROD`
+10. To get the correct API base URL values:
+    - Open the dev App Service overview page
+    - Copy the default hostname and build the URL as `https://<your-dev-app-service-hostname>`
+    - Save it as `API_BASE_URL_DEV`
+    - Repeat for prod and save it as `API_BASE_URL_PROD`
 
-10. Double-check that the values line up with the Bicep parameter files.
-    - `AZURE_WEBAPP_NAME_DEV` must match `apiWebAppName` in `infra/env/dev.bicepparam`
-    - `AZURE_WEBAPP_NAME_PROD` must match `apiWebAppName` in `infra/env/prod.bicepparam`
+11. Add the optional Bicep override secrets if you want GitHub Actions to enforce your final names directly from repo settings.
 
-11. If you want extra protection, add required reviewers to the `prod` environment before allowing production deployment.
+Example for dev:
+
+```text
+uniqueSuffix=ram01 apiWebAppName=app-shippulse-api-dev-ram01 appServicePlanName=asp-shippulse-dev-ram01 keyVaultName=kvshippulsedevram01 logAnalyticsName=law-shippulse-dev-ram01 appInsightsName=appi-shippulse-dev-ram01 staticWebAppName=swa-shippulse-dev-ram01 staticWebAppLocation=eastasia location=centralindia enableJumpbox=false
+```
+
+Create one value for `ADDITIONAL_BICEP_PARAMS_DEV` and one for `ADDITIONAL_BICEP_PARAMS_PROD`.
+
+12. Double-check that the values line up with the Bicep parameter files.
+     - `AZURE_WEBAPP_NAME_DEV` must match `apiWebAppName` in `infra/env/dev.bicepparam`
+     - `AZURE_WEBAPP_NAME_PROD` must match `apiWebAppName` in `infra/env/prod.bicepparam`
+     - `AZURE_STATIC_WEBAPP_NAME_DEV` must match the dev `staticWebAppName`
+     - `AZURE_STATIC_WEBAPP_NAME_PROD` must match the prod `staticWebAppName`
+     - `staticWebAppLocation` should remain `eastasia`
+
+13. If you want extra protection, add required reviewers to the `prod` environment before allowing production deployment.
 
 ### Expected result
 
@@ -475,7 +489,7 @@ Your repo has the required secrets for both workflows.
 
 ### If blocked, check this
 
-- If a frontend deployment fails immediately, the Static Web Apps token is a likely issue.
+- If a frontend deployment fails immediately, the Static Web App name or `AZURE_CREDENTIALS` value is a likely issue.
 - If the frontend deploys but cannot call the API, the `API_BASE_URL_*` values are likely wrong.
 
 ## Phase 9: Commit and Push to `develop`
@@ -519,7 +533,7 @@ The backend workflow builds, tests, publishes, deploys infra for dev, and deploy
 
 ### If blocked, check this
 
-- If backend login fails, re-check Azure auth secrets.
+- If backend login fails, re-check `AZURE_CREDENTIALS`.
 - If backend infra deployment fails, re-check `infra/env/dev.bicepparam`.
 - If frontend config fails, re-check `API_BASE_URL_DEV`.
 
@@ -551,6 +565,7 @@ Dev deployment is reachable and observable.
 
 - If the backend deployed but `/health` fails, inspect App Service logs and configuration.
 - If monitoring is empty, make sure the app is actually receiving traffic.
+- If the frontend URL opens but shows the wrong API endpoint in `appsettings.json`, re-check `API_BASE_URL_DEV` or `API_BASE_URL_PROD`.
 
 ## Phase 11: Promote to `main`
 
@@ -626,8 +641,8 @@ Do not assume success just because the infrastructure deployment succeeded.
 
 ### GitHub Actions Azure auth fails
 
-- Re-check `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
-- Confirm the identity has access to the target resources.
+- Re-check `AZURE_CREDENTIALS`.
+- Confirm the service principal has access to the target resources.
 
 ### Bicep deployment fails
 
@@ -635,10 +650,11 @@ Do not assume success just because the infrastructure deployment succeeded.
 - Re-check the parameter file names and values.
 - Re-check Azure region availability.
 
-### Static Web App token issue
+### Static Web App deployment issue
 
-- Recreate or re-copy the deployment token.
-- Confirm dev token is in dev secret and prod token is in prod secret.
+- Re-check `AZURE_STATIC_WEBAPP_NAME_DEV` or `AZURE_STATIC_WEBAPP_NAME_PROD`.
+- Confirm the Static Web App exists in Azure.
+- Confirm the service principal in `AZURE_CREDENTIALS` can read Static Web App secrets.
 
 ### Wrong API base URL
 
@@ -648,6 +664,7 @@ Do not assume success just because the infrastructure deployment succeeded.
 ### Azure region unavailable
 
 - Use `South India` and document it clearly.
+- Keep `staticWebAppLocation` as `eastasia` unless you intentionally validate another supported Static Web Apps region.
 
 ## What Farees Will Expect in the Review
 

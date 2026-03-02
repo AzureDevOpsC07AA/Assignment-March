@@ -72,7 +72,7 @@ flowchart LR
 
 ## Tech Stack
 
-- Backend: .NET 8 Minimal API at `src/ShipPulse.Api`
+- Backend: .NET 10 Minimal API at `src/ShipPulse.Api`
 - Frontend: Blazor WebAssembly at `src/ShipPulse.Web`
 - Tests: `src/ShipPulse.Tests`
 - Infrastructure as Code: Bicep in `infra/`
@@ -99,10 +99,11 @@ This is already how the GitHub workflow files behave. Do not invent a different 
 
 ## Region
 
-- Default region: `Central India`
-- Fallback region if capacity is blocked: `South India`
+- Default region for VM, App Service, Key Vault, Application Insights, and Log Analytics: `Central India`
+- Fallback region for those services if capacity is blocked: `South India`
+- Static Web Apps location used by the validated pipeline: `East Asia`
 
-If you use the fallback region, document it in your notes and keep the same region consistently for the related resources.
+If you use the fallback region, document it in your notes and keep the same region consistently for the related resources. Do not force Static Web Apps into `Central India`. The validated deployment uses `East Asia` because Static Web Apps availability differs from the rest of the stack.
 
 ## Repo Creation Rules
 
@@ -173,8 +174,9 @@ curl -X GET "http://localhost:5080/api/feedback"
 [deploy-backend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-backend.yml) does this:
 
 1. Restores, builds, tests, and publishes the API.
-2. On `develop`, deploys infra with `infra/env/dev.bicepparam` and deploys the backend to the dev App Service.
-3. On `main`, deploys infra with `infra/env/prod.bicepparam` and deploys the backend to the prod App Service.
+2. Signs in to Azure by reading the `AZURE_CREDENTIALS` GitHub secret.
+3. On `develop`, deploys infra with `infra/env/dev.bicepparam` plus any values supplied in `ADDITIONAL_BICEP_PARAMS_DEV`, then deploys the backend to the dev App Service.
+4. On `main`, deploys infra with `infra/env/prod.bicepparam` plus any values supplied in `ADDITIONAL_BICEP_PARAMS_PROD`, then deploys the backend to the prod App Service.
 
 ### Frontend workflow
 
@@ -182,8 +184,10 @@ curl -X GET "http://localhost:5080/api/feedback"
 
 1. Builds the Blazor app with `dotnet publish`.
 2. Replaces `__API_BASE_URL__` in `src/ShipPulse.Web/wwwroot/appsettings.template.json`.
-3. On `develop`, deploys the frontend to the dev Static Web App.
-4. On `main`, deploys the frontend to the prod Static Web App.
+3. Signs in to Azure by reading the `AZURE_CREDENTIALS` GitHub secret.
+4. Looks up the Static Web Apps deployment token from Azure by using `AZURE_STATIC_WEBAPP_NAME_DEV` or `AZURE_STATIC_WEBAPP_NAME_PROD`.
+5. On `develop`, deploys the frontend to the dev Static Web App.
+6. On `main`, deploys the frontend to the prod Static Web App.
 
 ## Important Files You Will Edit
 
@@ -196,15 +200,26 @@ curl -X GET "http://localhost:5080/api/feedback"
 - [deploy-backend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-backend.yml)
 - [deploy-frontend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-frontend.yml)
 
-## Important Note About Key Vault
+## Validated Secrets Model
 
-The infrastructure creates Key Vault and configures the backend with a sample Key Vault reference for `ExternalApi__ApiKey`. The current repo does not fully automate secret creation and app access end to end. Students should treat this as part of the learning exercise and verify:
+The proven GitHub workflow path uses these repo secrets:
 
-1. the secret exists in Key Vault,
-2. the web app identity can resolve it,
-3. runtime configuration behaves as expected.
+- `AZURE_CREDENTIALS`
+- `AZURE_RG_DEV`
+- `AZURE_RG_PROD`
+- `AZURE_WEBAPP_NAME_DEV`
+- `AZURE_WEBAPP_NAME_PROD`
+- `AZURE_STATIC_WEBAPP_NAME_DEV`
+- `AZURE_STATIC_WEBAPP_NAME_PROD`
+- `API_BASE_URL_DEV`
+- `API_BASE_URL_PROD`
 
-Do not assume this step is complete just because the Bicep deployment succeeded.
+Optional override secrets used by the validated pipeline:
+
+- `ADDITIONAL_BICEP_PARAMS_DEV`
+- `ADDITIONAL_BICEP_PARAMS_PROD`
+
+`AZURE_CREDENTIALS` is a JSON service principal secret. It is the Azure login used by both workflows.
 
 ## Start Here
 

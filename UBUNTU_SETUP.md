@@ -56,8 +56,9 @@ Azure Portal.
    - Prasanth example: `rg-shippulse-prasanth-dev`
 6. Select region `Central India`.
 7. If `Central India` is blocked by capacity, use `South India`.
-8. Select `Review + create`.
-9. Select `Create`.
+8. This VM region guidance is for the Ubuntu development machine. In the ShipPulse deployment, Static Web Apps should still use `East Asia`.
+9. Select `Review + create`.
+10. Select `Create`.
 
 ### Expected result
 
@@ -266,7 +267,7 @@ sudo apt update
 3. Install the SDK:
 
 ```bash
-sudo apt install -y dotnet-sdk-8.0
+sudo apt install -y dotnet-sdk-10.0
 ```
 
 4. Verify the install:
@@ -463,7 +464,7 @@ And you can also:
 
 - Re-run the Microsoft package feed steps.
 - Re-run `sudo apt update`.
-- Reinstall `dotnet-sdk-8.0`.
+- Reinstall `dotnet-sdk-10.0`.
 
 ### `az` not found
 
