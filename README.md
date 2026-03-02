@@ -1,91 +1,213 @@
-# ShipPulse - Starter Repo (Backend + Frontend + IaC)
+# ShipPulse Starter Repo
 
-This repository is used for the **ShipPulse Startup DevOps Assignment (7 days)**.
+Ram and Prasanth have just joined ShipPulse. Farees is the course instructor. This repository is the startup handoff: clone or fork it, create your own repo in the shared GitHub org, build from your own Ubuntu VM, and prove you can ship frontend and backend changes through CI/CD.
 
-# System Requirements
-https://dotnet.microsoft.com/en-us/download
+## Who Owns What
 
-# Ubuntu Setup
-Incase you are unable to install any of those, you can use Ubuntu VM from Azure and install there and use it
+- Frontend engineer: Ram
+- Backend engineer: Prasanth
+- Instructor: Farees
+- Shared GitHub org: `AzureDevOpsC07AA`
+- Required student repos:
+  - `AzureDevOpsC07AA/shippulse-ram`
+  - `AzureDevOpsC07AA/shippulse-prasanth`
 
-Install dotnet in Ubuntu
-https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet10&pivots=os-linux-ubuntu-2404
+Each engineer works in a separate Azure subscription and creates a separate Ubuntu VM. The VM is the primary development machine. The personal Windows laptop is only used to connect to the VM over SSH.
 
+## Startup Workflow
 
-## Training org and repo model
-Use the shared GitHub org: **AzureDevOpsC07AA**
+1. Create your own private repo in `AzureDevOpsC07AA`.
+2. Create your own Ubuntu VM in Azure.
+3. SSH into the VM and install the required tools.
+4. Clone your ShipPulse repo into the VM.
+5. Run backend and frontend locally inside Ubuntu.
+6. Update the Bicep parameter files with your own naming suffix.
+7. Configure GitHub Actions secrets and environments.
+8. Push to `develop` to validate CI and deploy to dev.
+9. Promote to `main` to deploy to prod.
+10. Verify App Service, Static Web Apps, Key Vault, Application Insights, and Log Analytics.
 
-Each engineer must create a separate private repo in the same org:
-- Engineer 1: `AzureDevOpsC07AA/shippulse-eng1`
-- Engineer 2: `AzureDevOpsC07AA/shippulse-eng2`
+## Architecture
 
-Both engineers use the **same starter code**, but deploy into their own Azure resources using different suffixes:
-- Engineer 1 suffix: `e1c07aa`
-- Engineer 2 suffix: `e2c07aa`
+ShipPulse uses a VM-first developer workflow and GitHub Actions based deployment flow. Ram and Prasanth each use their own Ubuntu VM, push to their own GitHub repo, and deploy to Azure resources in their own subscription.
 
-## Tech
-- Backend: .NET 8 Minimal API (`src/ShipPulse.Api`)
-- Frontend: Blazor WebAssembly (`src/ShipPulse.Web`) - builds using **dotnet only** (no Node required)
-- IaC: Bicep (`infra/`) - deploy from **Azure Cloud Shell** or GitHub Actions
-- Azure Targets:
-  - Ubuntu VM (Jumpbox + optional self-hosted runner)
-  - Azure App Service (Backend)
-  - Azure Static Web Apps (Frontend)
-  - Key Vault (runtime secrets)
-  - Application Insights + Log Analytics (monitoring)
-  - Logic App (start a stopped VM on schedule)
+```mermaid
+flowchart LR
+    subgraph Engineer1["Ram Workspace"]
+        Laptop1["Windows Laptop<br/>SSH Client"]
+        VM1["Ubuntu VM<br/>Azure Subscription A"]
+        Repo1["GitHub Repo<br/>shippulse-ram"]
+        Laptop1 --> VM1
+        VM1 --> Repo1
+    end
+
+    subgraph Engineer2["Prasanth Workspace"]
+        Laptop2["Windows Laptop<br/>SSH Client"]
+        VM2["Ubuntu VM<br/>Azure Subscription B"]
+        Repo2["GitHub Repo<br/>shippulse-prasanth"]
+        Laptop2 --> VM2
+        VM2 --> Repo2
+    end
+
+    Repo1 --> GA1["GitHub Actions"]
+    Repo2 --> GA2["GitHub Actions"]
+
+    GA1 --> App1["Azure App Service<br/>Backend API"]
+    GA1 --> SWA1["Azure Static Web Apps<br/>Frontend"]
+    GA2 --> App2["Azure App Service<br/>Backend API"]
+    GA2 --> SWA2["Azure Static Web Apps<br/>Frontend"]
+
+    App1 --> KV1["Azure Key Vault"]
+    App2 --> KV2["Azure Key Vault"]
+
+    App1 --> AI1["Application Insights"]
+    App2 --> AI2["Application Insights"]
+
+    AI1 --> LA1["Log Analytics"]
+    AI2 --> LA2["Log Analytics"]
+
+    Logic1["Logic App<br/>Optional VM Start Schedule"] --> VM1
+    Logic2["Logic App<br/>Optional VM Start Schedule"] --> VM2
+```
+
+## Tech Stack
+
+- Backend: .NET 8 Minimal API at `src/ShipPulse.Api`
+- Frontend: Blazor WebAssembly at `src/ShipPulse.Web`
+- Tests: `src/ShipPulse.Tests`
+- Infrastructure as Code: Bicep in `infra/`
+- CI/CD:
+  - [deploy-backend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-backend.yml)
+  - [deploy-frontend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-frontend.yml)
+
+## Branch Model
+
+- `develop` triggers dev deployment
+- `main` triggers prod deployment
+
+This is already how the GitHub workflow files behave. Do not invent a different branch model for this assignment.
+
+## Required Azure Services
+
+- Ubuntu VM: your Linux development machine
+- Azure App Service: backend hosting
+- Azure Static Web Apps: frontend hosting
+- Azure Key Vault: runtime secret storage
+- Application Insights: application telemetry
+- Log Analytics: central log workspace
+- Logic App: optional VM start automation for the learning environment
 
 ## Region
-Use **Central India**.
-If Azure blocks creation due to temporary quota/capacity, use **South India** as the fallback and document it in your submission.
 
-## Quick local run
-Backend:
+- Default region: `Central India`
+- Fallback region if capacity is blocked: `South India`
+
+If you use the fallback region, document it in your notes and keep the same region consistently for the related resources.
+
+## Repo Creation Rules
+
+### Goal
+
+Create your own private working repo in the shared GitHub org.
+
+### Where to do this
+
+GitHub web UI.
+
+### Exact steps
+
+1. Sign in to GitHub.
+2. Open the `AzureDevOpsC07AA` organization.
+3. Create a new private repository.
+4. Use one of these exact names:
+   - Ram: `shippulse-ram`
+   - Prasanth: `shippulse-prasanth`
+5. Start from this starter repository by either forking it into the org or pushing this starter code into the new repo.
+6. Create a `develop` branch.
+7. Keep `main` as the production branch.
+
+### Expected result
+
+You now have your own repo in the org and can push changes without affecting the other engineer.
+
+### If blocked, check this
+
+- Confirm you have permission to create private repos in `AzureDevOpsC07AA`.
+- Confirm you did not create the repo under a personal account by mistake.
+
+## Local Development Model
+
+Do all code work from Ubuntu, not from the Windows laptop. The Windows laptop is just the SSH entry point.
+
+Backend local run:
+
 ```bash
 dotnet restore
 dotnet run --project src/ShipPulse.Api
 ```
 
-Frontend:
+Frontend local run:
+
 ```bash
 dotnet run --project src/ShipPulse.Web
 ```
 
 Default local URLs:
-- Backend: http://localhost:5080
-- Frontend: http://localhost:5170
 
-You should see Message can be seen below
+- Backend: `http://localhost:5080`
+- Frontend: `http://localhost:5170`
+- Backend health endpoint: `http://localhost:5080/health`
 
-Available endpoint to test in web for Backend
-http://localhost:5080/health
+Useful backend test commands:
 
-Note for Backend you can use curl to get response, use below command
-Health Check
-This command checks the health of the API.
 ```bash
 curl -X GET "http://localhost:5080/health"
-```
-
-Submit New Feedback
-This command posts a new feedback message.
-```bash
 curl -X POST "http://localhost:5080/api/feedback" -H "Content-Type: application/json" -d "{\"message\":\"This is a test message from curl\",\"createdBy\":\"developer\"}"
-```
-
-Get All Feedback
-This command retrieves a list of all submitted feedback items.
-```bash
 curl -X GET "http://localhost:5080/api/feedback"
 ```
 
+## CI/CD Overview
 
-## Important files you will edit
-- `infra/env/dev.bicepparam`
-- `infra/env/prod.bicepparam`
-- `.github/workflows/deploy-backend.yml`
-- `.github/workflows/deploy-frontend.yml`
-- `src/ShipPulse.Web/Shared/MainLayout.razor`
+### Backend workflow
 
-## Docs
-See `docs/printable/` for the final printable handouts.
+[deploy-backend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-backend.yml) does this:
+
+1. Restores, builds, tests, and publishes the API.
+2. On `develop`, deploys infra with `infra/env/dev.bicepparam` and deploys the backend to the dev App Service.
+3. On `main`, deploys infra with `infra/env/prod.bicepparam` and deploys the backend to the prod App Service.
+
+### Frontend workflow
+
+[deploy-frontend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-frontend.yml) does this:
+
+1. Builds the Blazor app with `dotnet publish`.
+2. Replaces `__API_BASE_URL__` in `src/ShipPulse.Web/wwwroot/appsettings.template.json`.
+3. On `develop`, deploys the frontend to the dev Static Web App.
+4. On `main`, deploys the frontend to the prod Static Web App.
+
+## Important Files You Will Edit
+
+- [README.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/README.md)
+- [UBUNTU_SETUP.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/UBUNTU_SETUP.md)
+- [docs/Student-Assignment.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/docs/Student-Assignment.md)
+- [docs/Solution-Guide.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/docs/Solution-Guide.md)
+- [infra/env/dev.bicepparam](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/infra/env/dev.bicepparam)
+- [infra/env/prod.bicepparam](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/infra/env/prod.bicepparam)
+- [deploy-backend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-backend.yml)
+- [deploy-frontend.yml](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/.github/workflows/deploy-frontend.yml)
+
+## Important Note About Key Vault
+
+The infrastructure creates Key Vault and configures the backend with a sample Key Vault reference for `ExternalApi__ApiKey`. The current repo does not fully automate secret creation and app access end to end. Students should treat this as part of the learning exercise and verify:
+
+1. the secret exists in Key Vault,
+2. the web app identity can resolve it,
+3. runtime configuration behaves as expected.
+
+Do not assume this step is complete just because the Bicep deployment succeeded.
+
+## Start Here
+
+- Ubuntu VM setup: [UBUNTU_SETUP.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/UBUNTU_SETUP.md)
+- Student execution guide: [docs/Student-Assignment.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/docs/Student-Assignment.md)
+- Instructor solution guide: [docs/Solution-Guide.md](/c:/Users/Mohamed Farees/Downloads/ShipPulse_StarterRepo_v3/shippulse-starter/docs/Solution-Guide.md)
