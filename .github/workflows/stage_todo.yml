@@ -33,9 +33,10 @@ jobs:
       - name: dotnet publish
         run: dotnet publish src/ShipPulse.Api/ShipPulse.Api.csproj -c Release -o ./publish
       - name: Create deployment zip
+        id: zipdeploycreator
         run: |
           cd publish
-          zip -r ../shippulse-api.zip .
+          dotnet publish -c Release -o publish   
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
