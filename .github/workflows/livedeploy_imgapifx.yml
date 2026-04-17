@@ -21,19 +21,26 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 'v6.0'
+          dotnet-version: 'v10.0.x'
+
+      - run: dotnet restore src/ShipPulse.Tests/ShipPulse.Tests.csproj
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build src/ShipPulse.Tests/ShipPulse.Tests.csproj --configuration Release --no-restore
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish src/ShipPulse.Api/ShipPulse.Api.csproj -c Release -o ./publish
+
+      - name: Create deployment zip
+        id: zipdeploycreator
+        run: |
+          Compress-Archive -Path ./publish/* -DestinationPath ./shippulse-api.zip
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          name: shippulse-api
+          path: ./shippulse-api.zip
 
   deploy:
     runs-on: windows-latest
@@ -43,7 +50,7 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
+          name: shippulse-api
       
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
