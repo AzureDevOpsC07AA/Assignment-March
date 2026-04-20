@@ -56,6 +56,16 @@ app.MapGet("/api/feedback", (FeedbackStore store) =>
     return Results.Ok(store.GetAll());
 });
 
+app.MapGet("/hello", (IHostEnvironment env) =>
+{
+    return Results.Ok(new
+    {
+        status = "ok",
+        environment = env.EnvironmentName,
+        timeUtc = DateTime.UtcNow
+    });
+});
+
 app.MapPost("/api/feedback", (CreateFeedbackRequest req, FeedbackStore store) =>
 {
     if (string.IsNullOrWhiteSpace(req.Message) || req.Message.Length < 3)
