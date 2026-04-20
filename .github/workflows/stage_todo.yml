@@ -69,6 +69,6 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'todo'
-          slot-name: 'Production'
+          slot-name: 'uat'
           package: shippulse-api.zip
           
