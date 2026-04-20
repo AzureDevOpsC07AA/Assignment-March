@@ -109,3 +109,5 @@ jobs:
               --resource-group ${{ secrets.AZURE_RG_PROD }} \
               --name ${{ secrets.AZURE_WEBAPP_NAME_PROD }} \
               --src shippulse-api.zip
+              --slot uat
+
