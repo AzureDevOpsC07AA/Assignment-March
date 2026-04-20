@@ -56,6 +56,17 @@ app.MapGet("/api/feedback", (FeedbackStore store) =>
     return Results.Ok(store.GetAll());
 });
 
+
+app.MapGet("/", (IHostEnvironment env) =>
+{
+    return Results.Ok(new
+    {
+        status = "ok",
+        environment = env.EnvironmentName,
+        timeUtc = DateTime.UtcNow
+    });
+});
+
 app.MapGet("/hello", (IHostEnvironment env) =>
 {
     return Results.Ok(new
