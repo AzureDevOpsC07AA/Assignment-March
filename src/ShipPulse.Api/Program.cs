@@ -51,9 +51,51 @@ app.MapGet("/health", (IHostEnvironment env) =>
     });
 });
 
+app.MapGet("/what", (IHostEnvironment env) =>
+{
+    return Results.Ok(new
+    {
+        status = "ok",
+        environment = env.EnvironmentName,
+        timeUtc = DateTime.UtcNow
+    });
+});
+
+app.MapGet("/api/slot-info", (IConfiguration config) =>
+{
+    var slotName = config["DEPLOYMENT_SLOT_NAME"] ?? "default";
+    var connectionString = config["CONNECTION_STRING"] ?? "default-connection";
+    return Results.Ok(new
+    {
+        deploymentSlotName = slotName,
+        connectionString = connectionString
+    });
+});
+
 app.MapGet("/api/feedback", (FeedbackStore store) =>
 {
     return Results.Ok(store.GetAll());
+});
+
+
+app.MapGet("/", (IHostEnvironment env) =>
+{
+    return Results.Ok(new
+    {
+        status = "ok",
+        environment = env.EnvironmentName,
+        timeUtc = DateTime.UtcNow
+    });
+});
+
+app.MapGet("/hello", (IHostEnvironment env) =>
+{
+    return Results.Ok(new
+    {
+        status = "ok",
+        environment = env.EnvironmentName,
+        timeUtc = DateTime.UtcNow
+    });
 });
 
 app.MapPost("/api/feedback", (CreateFeedbackRequest req, FeedbackStore store) =>
