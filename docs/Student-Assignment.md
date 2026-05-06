@@ -1,3 +1,4 @@
+This is merge commit tester
 # ShipPulse Student Assignment
 
 Ram and Prasanth, welcome to ShipPulse.
