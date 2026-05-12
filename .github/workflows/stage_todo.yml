@@ -38,7 +38,7 @@ jobs:
           Compress-Archive -Path ./publish/* -DestinationPath ./shippulse-api.zip
 
       - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name:  shippulse-api
           path: ./shippulse-api.zip
