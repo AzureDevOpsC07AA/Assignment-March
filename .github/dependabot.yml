@@ -21,8 +21,3 @@ updates:
     directory: "src/backend/"
     schedule:
     interval: "weekly"
-    # day: "wednesday"
-    # ignore:
-    # - dependency-name: "*"
-    # update-types:
-    # - "version-update:semver-major"
