@@ -29,7 +29,7 @@ jobs:
         run: dotnet publish src/ShipPulse.Api/ShipPulse.Api.csproj -c Release -o ./artifacts/api
 
       - name: Upload API artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shippulse-api
           path: ./artifacts/api
@@ -42,7 +42,7 @@ jobs:
           dotnet publish src/ShipPulse.Web/ShipPulse.Web.csproj -c Release -o ./artifacts/web
 
       - name: Upload Web artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shippulse-web
           path: ./artifacts/web/wwwroot
