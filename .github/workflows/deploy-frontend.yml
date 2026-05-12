@@ -48,7 +48,7 @@ jobs:
           sed -i 's|__API_BASE_URL__|${{ secrets.API_BASE_URL_DEV }}|g' src/ShipPulse.Web/wwwroot/appsettings.json
 
       - name: Build static site
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet publish src/ShipPulse.Web/ShipPulse.Web.csproj -c Release -o ./webpublish
@@ -97,7 +97,7 @@ jobs:
           sed -i 's|__API_BASE_URL__|${{ secrets.API_BASE_URL_PROD }}|g' src/ShipPulse.Web/wwwroot/appsettings.json
 
       - name: Build static site
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet publish src/ShipPulse.Web/ShipPulse.Web.csproj -c Release -o ./webpublish
