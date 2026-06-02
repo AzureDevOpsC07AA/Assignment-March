@@ -1,0 +1,1 @@
+func init ShipPulse.Functions --worker-runtime dotnet-isolated
