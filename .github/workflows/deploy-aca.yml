@@ -1,0 +1,34 @@
+name: Deploy ACA Orders API
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'aca-demo/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy Container App
+      uses: azure/container-apps-deploy-action@v2
+      with:
+        appSourcePath: ./aca-demo/src
+        acrName: ${{ secrets.ACR_NAME }}
+        containerAppName: orders-api
+        resourceGroup: ${{ secrets.AZURE_RG_DEV }}
+        containerAppEnvironment: aca-env

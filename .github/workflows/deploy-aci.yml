@@ -1,0 +1,42 @@
+name: Run Invoice Processor in ACI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to GHCR
+      run: |
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build Image
+      run: |
+        docker build -t ghcr.io/${{ github.repository_owner }}/invoice-processor:latest ./aci-demo/processor
+
+    - name: Push Image
+      run: |
+        docker push ghcr.io/${{ github.repository_owner }}/invoice-processor:latest
+
+    - name: Run Azure Container Instance
+      run: |
+        az container create \
+          --resource-group ${{ secrets.AZURE_RG_DEV }} \
+          --name invoice-job-${{ github.run_id }} \
+          --image ghcr.io/${{ github.repository_owner }}/invoice-processor:latest \
+          --cpu 1 \
+          --memory 1 \
+          --restart-policy Never
