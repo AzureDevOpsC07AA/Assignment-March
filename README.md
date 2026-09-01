@@ -1,4 +1,4 @@
-# ShipPulse Starter Repo
+# ShipPulse Starter Repo Commit Test
 
 Ram and Prasanth have just joined ShipPulse. Farees is the course instructor. This repository is the startup handoff: clone or fork it, create your own repo in the shared GitHub org, build from your own Ubuntu VM, and prove you can ship frontend and backend changes through CI/CD.
 
